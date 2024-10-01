@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قائمة المهام المتطورة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        li.completed {
+            text-decoration: line-through;
+            color: gray;
+        }
+        button {
+            background-color: #ff4d4d;
+            border: none;
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .filters {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .filters button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .stats {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .search {
+            margin-bottom: 10px;
+        }
+        /* تنسيقات الأولويات */
+        .low-priority { background-color: #c3f3c3; }
+        .medium-priority { background-color: #f3e8c3; }
+        .high-priority { background-color: #f3c3c3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>قائمة المهام المتطورة</h1>
+    <input type="text" id="taskInput" placeholder="أضف مهمة جديدة...">
+    <input type="datetime-local" id="deadlineInput">
+    <select id="priorityInput">
+        <option value="low">أولوية منخفضة</option>
+        <option value="medium">أولوية متوسطة</option>
+        <option value="high">أولوية عالية</option>
+    </select>
+    <!-- تصنيف المهمة -->
+    <input type="text" id="tagInput" placeholder="أضف تصنيف للمهمة...">
+    <button onclick="addTask()">إضافة مهمة</button>
+
+    <!-- شريط البحث -->
+    <div class="search">
+        <input type="text" id="searchInput" placeholder="بحث عن مهمة..." oninput="searchTasks()">
+    </div>
+
+    <div class="filters">
+        <button onclick="filterTasks('all')">جميع المهام</button>
+        <button onclick="filterTasks('completed')">المهام المكتملة</button>
+        <button onclick="filterTasks('incomplete')">المهام غير المكتملة</button>
+    </div>
+
+    <ul id="taskList"></ul>
+
+    <!-- عرض الإحصائيات -->
+    <div class="stats">
+        <p>عدد المهام المكتملة: <span id="completedCount">0</span></p>
+        <p>عدد المهام غير المكتملة: <span id="incompleteCount">0</span></p>
+        <p>عدد المهام ذات الأولوية العالية: <span id="highPriorityCount">0</span></p>
+    </div>
+
+    <!-- إضافة أصوات التنبيهات -->
+    <audio id="taskAddedSound" src="path/to/your/sound1.mp3" preload="auto"></audio>
+    <audio id="taskCompletedSound" src="path/to/your/sound2.mp3" preload="auto"></audio>
+</div>
+
+<script>
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+    const taskInput = document.getElementById('taskInput');
+    const deadlineInput = document.getElementById('deadlineInput');
+    const priorityInput = document.getElementById('priorityInput');
+    const tagInput = document.getElementById('tagInput');
+    const taskList = document.getElementById('taskList');
+    const searchInput = document.getElementById('searchInput');
+    const completedCount = document.getElementById('completedCount');
+    const incompleteCount = document.getElementById('incompleteCount');
+    const highPriorityCount = document.getElementById('highPriorityCount');
+
+    // عرض المهام
+    const renderTasks = (filter = 'all') => {
+        taskList.innerHTML = '';
+        let filteredTasks = tasks;
+
+        if (filter === 'completed') {
+            filteredTasks = tasks.filter(task => task.completed);
+        } else if (filter === 'incomplete') {
+            filteredTasks = tasks.filter(task => !task.completed);
+        }
+
+        filteredTasks.forEach(task => {
+            const li = document.createElement('li');
+            li.className = `${task.completed ? 'completed' : ''} ${task.priority}-priority`;
+            li.innerHTML = `
+                ${task.text} - <em>${task.priority}</em> - <small>${task.deadline}</small> - <strong>${task.tag || ''}</strong>
+                <button onclick="editTask('${task.id}')">تعديل</button>
+                <button onclick="deleteTask('${task.id}')">حذف</button>
+            `;
+            li.addEventListener('click', () => toggleTask(task.id));
+            taskList.appendChild(li);
+        });
+
+        updateStats();
+    };
+
+    // إضافة مهمة
+    const addTask = () => {
+        const taskText = taskInput.value;
+        const deadline = deadlineInput.value;
+        const priority = priorityInput.value;
+        const tag = tagInput.value;
+
+        if (taskText !== '' && deadline !== '') {
+            const task = {
+                id: Date.now().toString(),
+                text: taskText,
+                deadline: deadline,
+                priority: priority,
+                tag: tag,
+                completed
